@@ -1,21 +1,14 @@
 import express from "express";
-import fs from "fs";
-import path from "path";
 import morgan from "morgan";
+import mongoose from "mongoose";
+import Player from "./models/player.js";
+import dotenv from "dotenv"
 
-const readPlayers = (playersName) => {
-  const data = fs.readFileSync(
-    path.resolve(`./database/${playersName}.json`),
-    "utf-8"
-  );
-  const risorsa = JSON.parse(data);
-  return risorsa;
-};
+dotenv.config()
+const MONGO_URI= process.env.MONGO_URI
 
-const writeRisorsa = (playersName, resource) => {
-  const data = JSON.stringify(resource);
-  fs.writeFileSync(path.resolve(`./database/${playersName}.json`), data);
-};
+mongoose.connect(MONGO_URI)
+
 
 const app = express();
 
@@ -25,37 +18,29 @@ app.listen(3000, () => {
 app.use(express.json());
 app.use(morgan("dev"));
 
-app.get("/players", (req, res) => {
-  res.sendFile(path.resolve("./database/players.json"));
-});
-
-app.post("/players", (req, res) => {
-  const newPlayer = req.body;
-  const players = readPlayers("players");
-  const ids = players.map((p) => p.id);
-  for (let i = 0; i <= ids.length; i++) {
-    if (!ids.includes(i)) {
-      newPlayer.id = i;
-      break;
+app.get("/players", async(req, res) => {
+    try{
+    const player = await Player.find();
+    res.send(player)
+    }catch (error) {
+      res.status(500).send(error.message);
     }
-  }
-  players.push(newPlayer);
-  writeRisorsa("players", players);
-  res.send(newPlayer);
 });
 
-app.delete("/players/:id", (req, res) => {
+app.post("/players", async(req, res) => {
+  try{
+    const newPlayer = req.body;
+    const player= await Player.create(newPlayer);
+    res.send(player)
+  }catch(error){
+    res.status(404).send(error.message);
+  }
+});
+
+app.delete("/players/:id", async(req, res) => {
   const { id } = req.params;
-  const players = readPlayers("players");
-  let indexToDelete;
-  for (let i = 0; i < players.length; i++) {
-    const player = players[i];
-    if (player.id === Number(id)) {
-      indexToDelete = i;
-      break;
-    }
-    players.splice(indexToDelete, 1);
-    writeRisorsa("players", players);
-    res.send("Good one");
-  }
-});
+  await Player.findByIdAndDelete(id);
+  res.send ("Book deleted successfully")
+ 
+})
+
